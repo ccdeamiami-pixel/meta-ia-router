@@ -1,6 +1,15 @@
-import streamlit as st
-from openai import OpenAI
+import subprocess
+import sys
 import urllib.parse
+import streamlit as st
+
+# --- SOLUCIÓN EMERGENCIA: AUTO-INSTALACIÓN ---
+# Si la nube no trae la librería OpenAI, se instala sola aquí.
+try:
+    from openai import OpenAI
+except ImportError:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "openai"])
+    from openai import OpenAI
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -13,7 +22,7 @@ st.set_page_config(
 st.title("🧠 Meta-IA Router")
 st.caption("La mejor IA del mercado, elegida para ti.")
 
-# --- CONFIGURACIÓN API (LA MAGIA DEL COFRE) ---
+# --- CONFIGURACIÓN API ---
 # Intenta buscar la llave en la Nube (Invisible) primero.
 api_key = st.secrets.get("OPENROUTER_API_KEY")
 
