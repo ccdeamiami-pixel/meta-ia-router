@@ -1,15 +1,7 @@
-import subprocess
-import sys
-import urllib.parse
 import streamlit as st
-
-# --- SOLUCIÓN EMERGENCIA: AUTO-INSTALACIÓN ---
-# Si la nube no trae la librería OpenAI, se instala sola aquí.
-try:
-    from openai import OpenAI
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "openai"])
-    from openai import OpenAI
+from openai import OpenAI
+import urllib.parse
+import speech_recognition as sr
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -23,10 +15,8 @@ st.title("🧠 Meta-IA Router")
 st.caption("La mejor IA del mercado, elegida para ti.")
 
 # --- CONFIGURACIÓN API ---
-# Intenta buscar la llave en la Nube (Invisible) primero.
 api_key = st.secrets.get("OPENROUTER_API_KEY")
 
-# Si no la encuentra (ej: si estás en tu PC local), pide que la ingresen manualmente.
 if not api_key:
     with st.sidebar:
         st.header("⚙️ Sistema")
@@ -35,7 +25,6 @@ if not api_key:
             st.warning("⚠️ Modo Local: Ingresa tu API Key.")
             st.stop()
 else:
-    # Si la encontró en la nube, muestra un pequeño check verde pero oculto la clave.
     st.sidebar.success("✅ Sistema Conectado")
 
 # --- CLIENTE ---
@@ -49,7 +38,7 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# --- LÓGICA DE ROUTING AVANZADA ---
+# --- LÓGICA DE ROUTING ---
 def select_best_model(user_query):
     query = user_query.lower()
     
@@ -60,8 +49,34 @@ def select_best_model(user_query):
     else:
         return "text"
 
+# --- ENTRADA POR VOZ O TEXTO ---
+prompt = ""
+
+# 1. Opción Voz (Nuevo!)
+st.write("🎙️ Dicta tu consulta aquí:")
+audio_file = st.audio_input("Grabar audio...")
+
+if audio_file:
+    with st.spinner("Escuchando y transcribiendo..."):
+        recognizer = sr.Recognizer()
+        with sr.AudioFile(audio_file) as source:
+            audio_data = recognizer.record(source)
+            try:
+                # Usamos Google Web Speech API (Gratuito)
+                text_from_voice = recognizer.recognize_google(audio_data, language="es-ES")
+                st.success(f"✅ Escuché: **{text_from_voice}**")
+                prompt = text_from_voice
+            except sr.UnknownValueError:
+                st.error("No te entendí bien, intenta escribir.")
+            except sr.RequestError:
+                st.error("Error conectando con el servicio de voz.")
+
+# 2. Opción Texto (Si no hubo voz, usa esto)
+if not prompt:
+    prompt = st.chat_input("Escribe tu consulta...")
+
 # --- EJECUCIÓN ---
-if prompt := st.chat_input("Escribe tu consulta..."):
+if prompt:
     with st.chat_message("user"):
         st.markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
